@@ -49,6 +49,15 @@ app.get("/api/wx_openid", async (req, res) => {
   }
 });
 
+// 微信登录
+app.get(/api/getOpenIdByCode, async (req, res) => {
+  const { code } = req.body;
+  res.send({
+    code: 0,
+    data: code,
+  });
+});
+
 const port = process.env.PORT || 80;
 
 async function bootstrap() {
