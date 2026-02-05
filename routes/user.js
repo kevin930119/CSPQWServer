@@ -46,4 +46,39 @@ router.get('/wx_openid', async (req, res) => {
   }
 });
 
+// 获取排行榜
+router.get('/rank', async (req, res) => {
+  try {
+    // 查询前50名用户，按rank降序排序
+    const users = await User.findAll({
+      limit: 50,
+      order: [['rank', 'DESC']],
+      attributes: ['icon', 'nickname', 'rank'],
+    });
+    
+    // 构造返回数据
+    const rankList = users.map((user, index) => ({
+      rank: index + 1, // 排行榜名次
+      user: {
+        icon: user.icon,
+        nickname: user.nickname,
+        score: user.rank, // 分数
+      },
+    }));
+    
+    res.send({
+      code: 0,
+      data: {
+        list: rankList,
+      },
+    });
+  } catch (error) {
+    console.error('获取排行榜失败:', error);
+    res.send({
+      code: 500,
+      message: '获取排行榜失败',
+    });
+  }
+});
+
 module.exports = router;
