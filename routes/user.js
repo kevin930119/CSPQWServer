@@ -1,5 +1,5 @@
 const express = require('express');
-const { User } = require('../db');
+const { User, Album, AlbumImage, UserAlbumImage } = require('../db');
 
 const router = express.Router();
 
@@ -77,6 +77,105 @@ router.get('/rank', async (req, res) => {
     res.send({
       code: 500,
       message: '获取排行榜失败',
+    });
+  }
+});
+
+// 获取用户最近一次已完成的图鉴信息
+router.get('/recent_album', async (req, res) => {
+  try {
+    // 获取用户open_id
+    const userOpenId = req.query.open_id;
+    
+    // 验证参数
+    if (!userOpenId) {
+      return res.send({
+        code: 400,
+        message: '用户未登录',
+      });
+    }
+    
+    // 检查用户是否存在
+    const user = await User.findOne({ where: { open_id: userOpenId } });
+    if (!user) {
+      return res.send({
+        code: 404,
+        message: '用户不存在',
+      });
+    }
+    
+    // 获取用户已完成的图鉴图片，按id降序排列，取最近的一条
+    const recentCompletedImage = await UserAlbumImage.findOne({
+      where: {
+        user_open_id: userOpenId,
+        completed: true,
+      },
+      order: [['id', 'DESC']],
+    });
+    
+    // 如果没有已完成的图片，返回空
+    if (!recentCompletedImage) {
+      return res.send({
+        code: 0,
+        data: null,
+      });
+    }
+    
+    // 获取该图片所属的图鉴图片
+    const albumImage = await AlbumImage.findByPk(recentCompletedImage.album_image_id);
+    if (!albumImage) {
+      return res.send({
+        code: 404,
+        message: '图片不存在',
+      });
+    }
+    
+    // 获取图鉴信息
+    const album = await Album.findByPk(albumImage.parent_id);
+    if (!album) {
+      return res.send({
+        code: 404,
+        message: '图鉴不存在',
+      });
+    }
+    
+    // 获取该图鉴下的所有图片，按level升序排列
+    const allImages = await AlbumImage.findAll({
+      where: { parent_id: album.id },
+      order: [['level', 'ASC']],
+    });
+    
+    // 计算最近完成的图片在列表中的下标
+    const imageIndex = allImages.findIndex(img => img.id === albumImage.id);
+    
+    // 构造返回数据
+    const result = {
+      album: {
+        id: album.id,
+        name: album.name,
+        total: album.total,
+      },
+      image: {
+        id: albumImage.id,
+        parent_id: albumImage.parent_id,
+        name: albumImage.name,
+        level: albumImage.level,
+        list_cover: albumImage.list_cover,
+        pic: albumImage.pic,
+        type: albumImage.type,
+      },
+      image_index: imageIndex,
+    };
+    
+    res.send({
+      code: 0,
+      data: result,
+    });
+  } catch (error) {
+    console.error('获取最近完成的图鉴信息失败:', error);
+    res.send({
+      code: 500,
+      message: '获取最近完成的图鉴信息失败',
     });
   }
 });
