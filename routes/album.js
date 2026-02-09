@@ -261,6 +261,7 @@ router.post('/album/image/complete', async (req, res) => {
         },
         include: [{
           model: AlbumImage,
+          as: 'albumImage',
           where: { parent_id: albumId }
         }],
         transaction: t

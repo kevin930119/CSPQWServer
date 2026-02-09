@@ -130,6 +130,12 @@ const UserAlbum = sequelize.define("UserAlbum", {
   },
 });
 
+// 定义模型之间的关联关系
+UserAlbumImage.belongsTo(AlbumImage, {
+  foreignKey: 'album_image_id',
+  as: 'albumImage'
+});
+
 // 数据库初始化方法
 async function init() {
   await Counter.sync({ alter: true });
