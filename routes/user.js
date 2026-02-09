@@ -260,10 +260,10 @@ router.get('/recent_album', async (req, res) => {
       data: result,
     });
   } catch (error) {
-    console.error('获取最近完成的图鉴信息失败:', error);
+    const errMsg = '获取最近完成的图鉴信息失败:'+error;
     res.send({
       code: 500,
-      message: '获取最近完成的图鉴信息失败',
+      message: errMsg,
     });
   }
 });
