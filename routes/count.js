@@ -15,6 +15,7 @@ router.post('/count', async (req, res) => {
   }
   res.send({
     code: 0,
+    message: '操作成功',
     data: await Counter.count(),
   });
 });
@@ -24,6 +25,7 @@ router.get('/count', async (req, res) => {
   const result = await Counter.count();
   res.send({
     code: 0,
+    message: '获取成功',
     data: result,
   });
 });

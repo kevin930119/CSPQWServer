@@ -1,5 +1,5 @@
 const express = require('express');
-const { Album, AlbumImage, UserAlbumImage, User, sequelize } = require('../db');
+const { Album, AlbumImage, UserAlbumImage, User, UserAlbum, sequelize } = require('../db');
 
 const router = express.Router();
 
@@ -41,6 +41,19 @@ router.get('/albums', async (req, res) => {
         completedCount = completedImages.length;
       }
       
+      // 检查用户是否已完成该图鉴
+      let albumCompleted = false;
+      if (userOpenId) {
+        const userAlbum = await UserAlbum.findOne({
+          where: {
+            user_open_id: userOpenId,
+            album_id: album.id,
+            completed: true,
+          },
+        });
+        albumCompleted = !!userAlbum;
+      }
+      
       albums.push({
         id: album.id,
         name: album.name,
@@ -48,11 +61,13 @@ router.get('/albums', async (req, res) => {
         cover: album.cover,
         total: album.total,
         completed: completedCount, // 返回已完成的图片数量
+        album_completed: albumCompleted, // 返回图鉴是否已完成
       });
     }
     
     res.send({
       code: 0,
+      message: '获取成功',
       data: {
         list: albums,
         pagination: {
@@ -129,6 +144,7 @@ router.get('/album/images', async (req, res) => {
     
     res.send({
       code: 0,
+      message: '获取成功',
       data: {
         list: images,
         pagination: {
@@ -227,6 +243,58 @@ router.post('/album/image/complete', async (req, res) => {
       
       // 用户rank+1
       await user.increment('rank', { by: 1, transaction: t });
+      
+      // 检查是否是图鉴的最后一张图片
+      const albumId = image.parent_id;
+      
+      // 获取该图鉴下的所有图片数量
+      const totalImages = await AlbumImage.count({
+        where: { parent_id: albumId },
+        transaction: t
+      });
+      
+      // 获取用户已完成的该图鉴下的图片数量
+      const completedImages = await UserAlbumImage.count({
+        where: {
+          user_open_id: userOpenId,
+          completed: true,
+        },
+        include: [{
+          model: AlbumImage,
+          where: { parent_id: albumId }
+        }],
+        transaction: t
+      });
+      
+      // 如果是最后一张图片，标记图鉴为完成
+      if (completedImages === totalImages) {
+        // 检查是否已有用户与图鉴的关系记录
+        let userAlbum = await UserAlbum.findOne({
+          where: {
+            user_open_id: userOpenId,
+            album_id: albumId
+          },
+          transaction: t
+        });
+        
+        if (userAlbum) {
+          // 更新状态
+          await userAlbum.update(
+            { completed: true },
+            { transaction: t }
+          );
+        } else {
+          // 创建新记录
+          await UserAlbum.create(
+            {
+              user_open_id: userOpenId,
+              album_id: albumId,
+              completed: true
+            },
+            { transaction: t }
+          );
+        }
+      }
       
       return userImage;
     });

@@ -24,6 +24,7 @@ router.get('/wx_openid', async (req, res) => {
       // 返回用户信息
       res.send({
         code: 0,
+        message: '获取成功',
         data: {
           open_id: user.open_id,
           nickname: user.nickname,
@@ -68,6 +69,7 @@ router.get('/rank', async (req, res) => {
     
     res.send({
       code: 0,
+      message: '获取成功',
       data: {
         list: rankList,
       },
@@ -105,7 +107,7 @@ router.get('/recent_album', async (req, res) => {
     }
     
     // 获取用户已完成的图鉴图片，按id降序排列，取最近的一条
-    const recentCompletedImage = await UserAlbumImage.findOne({
+    let recentCompletedImage = await UserAlbumImage.findOne({
       where: {
         user_open_id: userOpenId,
         completed: true,
@@ -113,62 +115,148 @@ router.get('/recent_album', async (req, res) => {
       order: [['id', 'DESC']],
     });
     
-    // 如果没有已完成的图片，返回空
-    if (!recentCompletedImage) {
+    // 定义返回的图片和图鉴信息
+    let targetAlbumImage = null;
+    let targetAlbum = null;
+    let targetImageIndex = -1;
+    
+    if (recentCompletedImage) {
+      // 获取该图片所属的图鉴图片
+      const albumImage = await AlbumImage.findByPk(recentCompletedImage.album_image_id);
+      if (!albumImage) {
+        return res.send({
+          code: 404,
+          message: '图片不存在',
+        });
+      }
+      
+      // 获取图鉴信息
+      const album = await Album.findByPk(albumImage.parent_id);
+      if (!album) {
+        return res.send({
+          code: 404,
+          message: '图鉴不存在',
+        });
+      }
+      
+      // 检查该图鉴是否已完成
+      const userAlbum = await UserAlbum.findOne({
+        where: {
+          user_open_id: userOpenId,
+          album_id: album.id,
+          completed: true,
+        },
+      });
+      
+      // 如果图鉴未完成
+      if (!userAlbum) {
+        // 获取该图鉴下的所有图片，按level升序排列
+        const allImages = await AlbumImage.findAll({
+          where: { parent_id: album.id },
+          order: [['level', 'ASC']],
+        });
+        
+        // 计算最近完成的图片在列表中的下标
+        const imageIndex = allImages.findIndex(img => img.id === albumImage.id);
+        
+        // 检查是否还有下一张图片
+        if (imageIndex < allImages.length - 1) {
+          // 有下一张图片，返回下一张
+          targetAlbumImage = allImages[imageIndex + 1];
+          targetAlbum = album;
+          targetImageIndex = imageIndex + 1;
+        }
+      }
+    }
+    
+    // 如果没有已完成的图片，或者完成的图片所属图鉴已完成，获取第一个未完成的图鉴信息
+    if (!targetAlbumImage) {
+      // 获取所有图鉴，按更新时间倒序排列
+      const albums = await Album.findAll({
+        order: [['updatedAt', 'DESC']],
+      });
+      
+      // 遍历图鉴，找到第一个有未完成图片的图鉴
+      for (const album of albums) {
+        // 检查该图鉴是否已完成
+        const userAlbum = await UserAlbum.findOne({
+          where: {
+            user_open_id: userOpenId,
+            album_id: album.id,
+            completed: true,
+          },
+        });
+        
+        // 如果图鉴已完成，跳过
+        if (userAlbum) {
+          continue;
+        }
+        
+        // 获取该图鉴下的所有图片，按level升序排列
+        const allImages = await AlbumImage.findAll({
+          where: { parent_id: album.id },
+          order: [['level', 'ASC']],
+        });
+        
+        // 检查是否有未完成的图片
+        let foundUncompleted = false;
+        for (const image of allImages) {
+          // 检查用户是否已完成该图片
+          const userImage = await UserAlbumImage.findOne({
+            where: {
+              user_open_id: userOpenId,
+              album_image_id: image.id,
+              completed: true,
+            },
+          });
+          
+          // 如果找到未完成的图片
+          if (!userImage) {
+            targetAlbumImage = image;
+            targetAlbum = album;
+            targetImageIndex = allImages.findIndex(img => img.id === image.id);
+            foundUncompleted = true;
+            break;
+          }
+        }
+        
+        if (foundUncompleted) {
+          break;
+        }
+      }
+    }
+    
+    // 如果仍然没有找到图片，返回空对象
+    if (!targetAlbumImage || !targetAlbum) {
       return res.send({
         code: 0,
-        data: null,
+        message: '没有可完成的图片',
+        data: {},
       });
     }
-    
-    // 获取该图片所属的图鉴图片
-    const albumImage = await AlbumImage.findByPk(recentCompletedImage.album_image_id);
-    if (!albumImage) {
-      return res.send({
-        code: 404,
-        message: '图片不存在',
-      });
-    }
-    
-    // 获取图鉴信息
-    const album = await Album.findByPk(albumImage.parent_id);
-    if (!album) {
-      return res.send({
-        code: 404,
-        message: '图鉴不存在',
-      });
-    }
-    
-    // 获取该图鉴下的所有图片，按level升序排列
-    const allImages = await AlbumImage.findAll({
-      where: { parent_id: album.id },
-      order: [['level', 'ASC']],
-    });
-    
-    // 计算最近完成的图片在列表中的下标
-    const imageIndex = allImages.findIndex(img => img.id === albumImage.id);
     
     // 构造返回数据
     const result = {
       album: {
-        id: album.id,
-        name: album.name,
-        total: album.total,
+        id: targetAlbum.id,
+        name: targetAlbum.name,
+        total: targetAlbum.total,
       },
       image: {
-        id: albumImage.id,
-        parent_id: albumImage.parent_id,
-        name: albumImage.name,
-        level: albumImage.level,
-        list_cover: albumImage.list_cover,
-        pic: albumImage.pic,
-        type: albumImage.type,
+        id: targetAlbumImage.id,
+        parent_id: targetAlbumImage.parent_id,
+        name: targetAlbumImage.name,
+        level: targetAlbumImage.level,
+        list_cover: targetAlbumImage.list_cover,
+        pic: targetAlbumImage.pic,
+        type: targetAlbumImage.type,
       },
-      image_index: imageIndex,
+      image_index: targetImageIndex,
     };
     
     res.send({
       code: 0,
+      message: '获取成功',
       data: result,
     });
   } catch (error) {

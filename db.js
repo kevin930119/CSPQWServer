@@ -113,6 +113,23 @@ const UserAlbumImage = sequelize.define("UserAlbumImage", {
   },
 });
 
+// 定义用户与图鉴的关系模型
+const UserAlbum = sequelize.define("UserAlbum", {
+  user_open_id: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  album_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  completed: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+});
+
 // 数据库初始化方法
 async function init() {
   await Counter.sync({ alter: true });
@@ -120,6 +137,7 @@ async function init() {
   await Album.sync({ alter: true });
   await AlbumImage.sync({ alter: true });
   await UserAlbumImage.sync({ alter: true });
+  await UserAlbum.sync({ alter: true });
 }
 
 // 导出初始化方法、模型和sequelize实例
@@ -130,5 +148,6 @@ module.exports = {
   Album,
   AlbumImage,
   UserAlbumImage,
+  UserAlbum,
   sequelize,
 };
