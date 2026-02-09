@@ -1,5 +1,5 @@
 const express = require('express');
-const { User, Album, AlbumImage, UserAlbumImage } = require('../db');
+const { User, Album, AlbumImage, UserAlbumImage, UserAlbum } = require('../db');
 
 const router = express.Router();
 
