@@ -50,6 +50,9 @@ router.get('/wx_openid', async (req, res) => {
 // 获取排行榜
 router.get('/rank', async (req, res) => {
   try {
+    // 获取当前用户的open_id
+    const userOpenId = req.query.open_id;
+    
     // 查询前50名用户，按rank降序排序
     const users = await User.findAll({
       limit: 50,
@@ -67,11 +70,44 @@ router.get('/rank', async (req, res) => {
       },
     }));
     
+    // 查询当前用户的排名和rank数
+    let currentUser = null;
+    if (userOpenId) {
+      // 查询所有用户，按rank降序排序
+      const allUsers = await User.findAll({
+        order: [['rank', 'DESC']],
+        attributes: ['open_id', 'rank'],
+      });
+      
+      // 计算当前用户的排名
+      const userRank = allUsers.findIndex(user => user.open_id === userOpenId) + 1;
+      
+      // 如果找到用户
+      if (userRank > 0) {
+        const userInfo = await User.findOne({
+          where: { open_id: userOpenId },
+          attributes: ['icon', 'nickname', 'rank'],
+        });
+        
+        if (userInfo) {
+          currentUser = {
+            rank: userRank,
+            user: {
+              icon: userInfo.icon,
+              nickname: userInfo.nickname,
+              score: userInfo.rank,
+            },
+          };
+        }
+      }
+    }
+    
     res.send({
       code: 0,
       message: '获取成功',
       data: {
         list: rankList,
+        current_user: currentUser,
       },
     });
   } catch (error) {
