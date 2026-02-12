@@ -57,7 +57,7 @@ router.get('/rank', async (req, res) => {
     const users = await User.findAll({
       limit: 50,
       order: [['rank', 'DESC']],
-      attributes: ['icon', 'nickname', 'rank'],
+      attributes: ['open_id', 'icon', 'nickname', 'rank'],
     });
     
     // 构造返回数据
@@ -73,17 +73,22 @@ router.get('/rank', async (req, res) => {
     // 查询当前用户的排名和rank数
     let currentUser = null;
     if (userOpenId) {
-      // 查询所有用户，按rank降序排序
-      const allUsers = await User.findAll({
-        order: [['rank', 'DESC']],
-        attributes: ['open_id', 'rank'],
-      });
+      // 检查用户是否在前50名中
+      const userInTop50 = users.find(user => user.open_id === userOpenId);
       
-      // 计算当前用户的排名
-      const userRank = allUsers.findIndex(user => user.open_id === userOpenId) + 1;
-      
-      // 如果找到用户
-      if (userRank > 0) {
+      if (userInTop50) {
+        // 用户在前50名中，计算排名
+        const userRank = users.indexOf(userInTop50) + 1;
+        currentUser = {
+          rank: userRank,
+          user: {
+            icon: userInTop50.icon,
+            nickname: userInTop50.nickname,
+            score: userInTop50.rank,
+          },
+        };
+      } else {
+        // 用户不在前50名中，查询用户信息，rank返回0
         const userInfo = await User.findOne({
           where: { open_id: userOpenId },
           attributes: ['icon', 'nickname', 'rank'],
@@ -91,7 +96,7 @@ router.get('/rank', async (req, res) => {
         
         if (userInfo) {
           currentUser = {
-            rank: userRank,
+            rank: 0, // 不在前50名，rank返回0
             user: {
               icon: userInfo.icon,
               nickname: userInfo.nickname,
@@ -300,6 +305,66 @@ router.get('/recent_album', async (req, res) => {
     res.send({
       code: 500,
       message: errMsg,
+    });
+  }
+});
+
+// 更新用户头像和昵称
+router.post('/update_profile', async (req, res) => {
+  try {
+    // 获取参数
+    const { nickname, icon } = req.body;
+    const userOpenId = req.query.open_id;
+    
+    // 验证参数
+    if (!userOpenId) {
+      return res.send({
+        code: 400,
+        message: '用户未登录',
+      });
+    }
+    
+    // 检查用户是否存在
+    const user = await User.findOne({ where: { open_id: userOpenId } });
+    if (!user) {
+      return res.send({
+        code: 404,
+        message: '用户不存在',
+      });
+    }
+    
+    // 更新用户信息
+    const updateData = {};
+    if (nickname !== undefined) {
+      updateData.nickname = nickname;
+    }
+    if (icon !== undefined) {
+      updateData.icon = icon;
+    }
+    
+    // 执行更新
+    if (Object.keys(updateData).length > 0) {
+      await user.update(updateData);
+    }
+    
+    // 获取更新后的用户信息
+    const updatedUser = await User.findOne({ where: { open_id: userOpenId } });
+    
+    res.send({
+      code: 0,
+      message: '更新成功',
+      data: {
+        open_id: updatedUser.open_id,
+        nickname: updatedUser.nickname,
+        icon: updatedUser.icon,
+        rank: updatedUser.rank,
+      },
+    });
+  } catch (error) {
+    console.error('更新用户信息失败:', error);
+    res.send({
+      code: 500,
+      message: '更新用户信息失败',
     });
   }
 });
