@@ -3,27 +3,20 @@ const { Album, AlbumImage, UserAlbumImage, User, UserAlbum, sequelize } = requir
 
 const router = express.Router();
 
-// 获取图鉴列表，支持分页加载
+// 获取图鉴列表，获取全部
 router.get('/albums', async (req, res) => {
   try {
-    // 获取分页参数，默认值为第1页，每页10条
-    const page = parseInt(req.query.page) || 1;
-    const pageSize = parseInt(req.query.pageSize) || 10;
-    const offset = (page - 1) * pageSize;
-    
     // 获取用户open_id
     const userOpenId = req.query.open_id;
     
-    // 查询图鉴列表
-    const { rows, count } = await Album.findAndCountAll({
-      limit: pageSize,
-      offset: offset,
-      order: [['updatedAt', 'DESC']], // 按更新时间戳倒序排列，最新的在最前面
+    // 查询所有图鉴，按更新时间戳倒序排列，最新的在最前面
+    const albums = await Album.findAll({
+      order: [['updatedAt', 'DESC']],
     });
     
     // 构造返回数据
-    const albums = [];
-    for (const album of rows) {
+    const albumList = [];
+    for (const album of albums) {
       // 查询该图鉴下的所有图片
       const images = await AlbumImage.findAll({ where: { parent_id: album.id } });
       const imageIds = images.map(img => img.id);
@@ -54,7 +47,7 @@ router.get('/albums', async (req, res) => {
         albumCompleted = !!userAlbum;
       }
       
-      albums.push({
+      albumList.push({
         id: album.id,
         name: album.name,
         type: album.type,
@@ -69,12 +62,7 @@ router.get('/albums', async (req, res) => {
       code: 0,
       message: '获取成功',
       data: {
-        list: albums,
-        pagination: {
-          current: page,
-          pageSize: pageSize,
-          total: count,
-        },
+        list: albumList,
       },
     });
   } catch (error) {
@@ -86,14 +74,11 @@ router.get('/albums', async (req, res) => {
   }
 });
 
-// 获取对应图鉴里面的图片列表，支持分页加载
+// 获取对应图鉴里面的图片列表，获取全部
 router.get('/album/images', async (req, res) => {
   try {
     // 获取参数
     const parentId = req.query.parent_id;
-    const page = parseInt(req.query.page) || 1;
-    const pageSize = parseInt(req.query.pageSize) || 10;
-    const offset = (page - 1) * pageSize;
     
     // 获取用户open_id
     const userOpenId = req.query.open_id;
@@ -106,17 +91,15 @@ router.get('/album/images', async (req, res) => {
       });
     }
     
-    // 查询图鉴图片列表
-    const { rows, count } = await AlbumImage.findAndCountAll({
+    // 查询图鉴图片列表，按等级升序排列
+    const images = await AlbumImage.findAll({
       where: { parent_id: parentId },
-      limit: pageSize,
-      offset: offset,
-      order: [['level', 'ASC']], // 按等级升序排列
+      order: [['level', 'ASC']],
     });
     
     // 构造返回数据
-    const images = [];
-    for (const image of rows) {
+    const imageList = [];
+    for (const image of images) {
       // 查询用户是否已完成该图片
       let isCompleted = false;
       if (userOpenId) {
@@ -130,7 +113,7 @@ router.get('/album/images', async (req, res) => {
         isCompleted = !!userImage;
       }
       
-      images.push({
+      imageList.push({
         id: image.id,
         parent_id: image.parent_id,
         name: image.name,
@@ -146,12 +129,7 @@ router.get('/album/images', async (req, res) => {
       code: 0,
       message: '获取成功',
       data: {
-        list: images,
-        pagination: {
-          current: page,
-          pageSize: pageSize,
-          total: count,
-        },
+        list: imageList,
       },
     });
   } catch (error) {

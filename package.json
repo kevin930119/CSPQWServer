@@ -10,7 +10,9 @@
   "license": "Apache-2.0",
   "dependencies": {
     "cors": "^2.8.5",
+    "cos-nodejs-sdk-v5": "^2.15.4",
     "express": "^4.16.4",
+    "express-fileupload": "^1.5.2",
     "morgan": "^1.10.0",
     "mysql2": "^2.3.2",
     "sequelize": "^6.8.0"
