@@ -121,6 +121,7 @@ router.get('/album/images', async (req, res) => {
         list_cover: image.list_cover,
         pic: image.pic,
         type: image.type,
+        shareUrl: image.shareUrl,
         completed: isCompleted, // 返回是否已完成
       });
     }

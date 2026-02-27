@@ -94,6 +94,10 @@ const AlbumImage = sequelize.define("AlbumImage", {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
+  shareUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 });
 
 // 定义用户图鉴关系模型

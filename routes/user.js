@@ -291,6 +291,7 @@ router.get('/recent_album', async (req, res) => {
         list_cover: targetAlbumImage.list_cover,
         pic: targetAlbumImage.pic,
         type: targetAlbumImage.type,
+        shareUrl: targetAlbumImage.shareUrl,
       },
       image_index: targetImageIndex,
     };
