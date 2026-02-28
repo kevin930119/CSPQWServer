@@ -1,5 +1,6 @@
 const express = require('express');
-const { User, Album, AlbumImage, UserAlbumImage, UserAlbum } = require('../db');
+const { User, Album, AlbumImage, UserAlbumImage, UserAlbum, sequelize } = require('../db');
+const Op = sequelize.Op;
 
 const router = express.Router();
 
@@ -13,11 +14,15 @@ router.get('/wx_openid', async (req, res) => {
       
       // 如果用户不存在，创建新用户
       if (!user) {
+        // 生成默认昵称：用户+open_id后四位
+        const openIdSuffix = openId.slice(-4);
+        const defaultNickname = `用户${openIdSuffix}`;
+        
         user = await User.create({
           open_id: openId,
-          nickname: '', // 初始化为空，后续可通过其他接口更新
+          nickname: defaultNickname, // 默认昵称
           icon: '', // 初始化为空，后续可通过其他接口更新
-          rank: 0, // 初始等级为1
+          rank: 0, // 初始等级为0
         });
       }
       
@@ -53,11 +58,16 @@ router.get('/rank', async (req, res) => {
     // 获取当前用户的open_id
     const userOpenId = req.query.open_id;
     
-    // 查询前50名用户，按rank降序排序
+    // 查询前50名用户，按rank降序排序，rank相同按last_rank_update降序排序，rank>0
     const users = await User.findAll({
+      where: {
+        rank: {
+          [Op.gt]: 0
+        }
+      },
       limit: 50,
-      order: [['rank', 'DESC']],
-      attributes: ['open_id', 'icon', 'nickname', 'rank'],
+      order: [['rank', 'DESC'], ['last_rank_update', 'DESC']],
+      attributes: ['open_id', 'icon', 'nickname', 'rank', 'last_rank_update'],
     });
     
     // 构造返回数据

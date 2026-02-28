@@ -223,6 +223,12 @@ router.post('/album/image/complete', async (req, res) => {
       // 用户rank+1
       await user.increment('rank', { by: 1, transaction: t });
       
+      // 更新用户最后关卡完成时间
+      await user.update(
+        { last_rank_update: Date.now() },
+        { transaction: t }
+      );
+      
       // 检查是否是图鉴的最后一张图片
       const albumId = image.parent_id;
       

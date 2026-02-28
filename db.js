@@ -38,7 +38,12 @@ const User = sequelize.define("User", {
   rank: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: 1,
+    defaultValue: 0,
+  },
+  last_rank_update: {
+    type: DataTypes.BIGINT,
+    allowNull: false,
+    defaultValue: 0,
   },
 });
 
