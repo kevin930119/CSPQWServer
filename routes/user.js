@@ -1,6 +1,6 @@
 const express = require('express');
-const { User, Album, AlbumImage, UserAlbumImage, UserAlbum, sequelize } = require('../db');
-const Op = sequelize.Op;
+const { User, Album, AlbumImage, UserAlbumImage, UserAlbum } = require('../db');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
